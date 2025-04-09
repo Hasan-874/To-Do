@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>To-Do List</title>
+  <style>
+    body {
+      font-family: 'Arial', sans-serif;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      background: linear-gradient(45deg, #6a11cb, #2575fc);
+      background-size: 400% 400%;
+      animation: gradientAnimation 15s ease infinite;
+    }
+
+    @keyframes gradientAnimation {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    #todo-container {
+      background: white;
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      width: 300px;
+      z-index: 10;
+    }
+
+    #todo-list {
+      list-style: none;
+      padding: 0;
+    }
+
+    .todo-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin: 10px 0;
+      padding: 15px;
+      border-radius: 5px;
+      background-color: #f9f9f9;
+      transition: transform 0.3s ease, background-color 0.3s ease;
+    }
+
+    .todo-item.done {
+      text-decoration: line-through;
+      background-color: #d3f8e2;
+    }
+
+    .todo-item:hover {
+      transform: scale(1.05);
+      background-color: #e0e0e0;
+    }
+
+    input[type="checkbox"] {
+      width: 20px;
+      height: 20px;
+      margin-right: 10px;
+    }
+
+    .countdown {
+      font-weight: bold;
+      color: #ff5733;
+    }
+
+    .clock, .calendar {
+      margin-top: 20px;
+    }
+
+    .clock {
+      font-size: 2em;
+      font-weight: bold;
+      color: #333;
+      animation: fadeIn 1s ease-in-out;
+    }
+
+    .calendar {
+      font-size: 1.2em;
+      font-weight: bold;
+      color: #333;
+      animation: fadeIn 1.5s ease-in-out;
+    }
+
+    @keyframes fadeIn {
+      0% { opacity: 0; }
+      100% { opacity: 1; }
+    }
+
+    #date {
+      margin-top: 10px;
+      font-size: 1.5em;
+      text-align: center;
+    }
+
+    input[type="number"] {
+      width: 50px;
+      margin-right: 10px;
+    }
+
+    .congrats-message {
+      font-size: 1.2em;
+      color: green;
+      font-weight: bold;
+      margin-top: 10px;
+      display: none;
+      animation: fadeIn 1s ease-in-out;
+    }
+
+    /* Animated button and task box */
+    #add-task {
+      background-color: #2575fc;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    #add-task:hover {
+      transform: scale(1.1);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+
+    /* Task Remove Button */
+    .remove-task {
+      background-color: red;
+      color: white;
+      border: none;
+      padding: 5px 10px;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: transform 0.2s ease;
+    }
+
+    .remove-task:hover {
+      transform: scale(1.1);
+      background-color: darkred;
+    }
+
+    /* Animated font */
+    h2 {
+      font-family: 'Verdana', sans-serif;
+      font-size: 2.5em;
+      text-align: center;
+      animation: textAnimation 1s ease-in-out;
+    }
+
+    @keyframes textAnimation {
+      0% { opacity: 0; transform: translateY(-20px); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
+
+    #todo-container {
+      animation: slideIn 0.6s ease-out;
+    }
+
+    @keyframes slideIn {
+      from {
+        transform: translateY(-30px);
+        opacity: 0;
+      }
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+
+  </style>
+</head>
+<body>
+
+<div id="todo-container">
+  <h2>To-Do List</h2>
+  <ul id="todo-list">
+    <!-- To-Do Items will be added here -->
+  </ul>
+  
+  <input type="text" id="task-input" placeholder="Add new task" />
+  <input type="number" id="time-input" placeholder="Hours" min="1" />
+  <button id="add-task">Add Task</button>
+  
+  <div class="clock" id="clock"></div>
+  <div class="calendar" id="date"></div>
+</div>
+
+<script>
+  // Task handling
+  const addTaskButton = document.getElementById('add-task');
+  const taskInput = document.getElementById('task-input');
+  const timeInput = document.getElementById('time-input');
+  const todoList = document.getElementById('todo-list');
+
+  // Load tasks from localStorage
+  function loadTasks() {
+    const savedTasks = JSON.parse(localStorage.getItem('tasks')) || [];
+    savedTasks.forEach(task => {
+      createTaskElement(task.name, task.time, task.completed);
+    });
+  }
+
+  // Save tasks to localStorage
+  function saveTasks() {
+    const tasks = [];
+    document.querySelectorAll('.todo-item').forEach(item => {
+      const taskName = item.querySelector('span').textContent;
+      const taskTime = parseInt(item.querySelector('.countdown').textContent.split(':')[0]);
+      const isCompleted = item.classList.contains('done');
+      tasks.push({ name: taskName, time: taskTime, completed: isCompleted });
+    });
+    localStorage.setItem('tasks', JSON.stringify(tasks));
+  }
+
+  function createTaskElement(taskName, taskTime, completed = false) {
+    const taskItem = document.createElement('li');
+    taskItem.classList.add('todo-item');
+    if (completed) taskItem.classList.add('done');
+    
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.checked = completed;
+    
+    const congratsMessage = document.createElement('div');
+    congratsMessage.classList.add('congrats-message');
+    congratsMessage.textContent = 'Congrats! Task Completed!';
+    
+    const taskLabel = document.createElement('span');
+    taskLabel.textContent = taskName;
+    
+    const countdown = document.createElement('span');
+    countdown.classList.add('countdown');
+    countdown.textContent = `${taskTime}:00:00`; // Set custom time for countdown
+    
+    const removeButton = document.createElement('button');
+    removeButton.classList.add('remove-task');
+    removeButton.textContent = 'Remove';
+
+    taskItem.appendChild(checkbox);
+    taskItem.appendChild(taskLabel);
+    taskItem.appendChild(countdown);
+    taskItem.appendChild(removeButton);
+    taskItem.appendChild(congratsMessage);
+    todoList.appendChild(taskItem);
+    
+    // Countdown timer (in hours)
+    let timeLeft = taskTime * 60 * 60; // Convert input hours to seconds
+    const countdownInterval = setInterval(() => {
+      if (timeLeft > 0) {
+        timeLeft--;
+        const hours = Math.floor(timeLeft / 3600);
+        const minutes = Math.floor((timeLeft % 3600) / 60);
+        const seconds = timeLeft % 60;
+        countdown.textContent = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+      } else {
+        clearInterval(countdownInterval);
+      }
+    }, 1000);
+
+    // When task is checked, stop countdown and show congrats
+    checkbox.addEventListener('change', () => {
+      if (checkbox.checked) {
+        clearInterval(countdownInterval);
+        congratsMessage.style.display = 'block'; // Show the congrats message
+        taskItem.classList.add('done');
+      } else {
+        congratsMessage.style.display = 'none'; // Hide the congrats message when unchecked
+        taskItem.classList.remove('done');
+      }
+      saveTasks(); // Save task state to localStorage
+    });
+
+    // Remove task functionality
+    removeButton.addEventListener('click', () => {
+      todoList.removeChild(taskItem);
+      saveTasks(); // Save the updated task list to localStorage
+    });
+  }
+
+  addTaskButton.addEventListener('click', () => {
+    const taskName = taskInput.value.trim();
+    const taskTime = parseInt(timeInput.value.trim(), 10);
+
+    if (taskName && taskTime > 0) {
+      createTaskElement(taskName, taskTime);
+      saveTasks(); // Save the new task
+      taskInput.value = ''; // Clear input field
+      timeInput.value = ''; // Clear time input field
+    } else {
+      alert('Please enter a task name and a valid time.');
+    }
+  });
+
+  // Digital Clock
+  function updateClock() {
+    const now = new Date();
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+    const timeString = `${hours}:${minutes}:${seconds}`;
+    document.getElementById('clock').textContent = timeString;
+  }
+
+  setInterval(updateClock, 1000);
+  updateClock(); // Initial call to set the clock
+
+  // Calendar Date
+  function updateDate() {
+    const now = new Date();
+    const dateString = `${now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}`;
+    document.getElementById('date').textContent = dateString;
+  }
+
+  setInterval(updateDate, 60000); // Update the date every minute
+  updateDate(); // Initial call to set the date
+
+  // Load tasks on page load
+  window.onload = loadTasks;
+</script>
+
+</body>
+</html>
